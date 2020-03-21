@@ -33,7 +33,6 @@ async def monitor_streams(bot, room_id, twitch_client_id):
                 stream_data = resp.json()['data']
                 _live = set([ d['user_name'] for d in stream_data ])
                 smap = { d['user_name'] : d for d in stream_data }
-                new = _live - live
                 now = datetime.utcnow()
                 for streamer in (_live - live):
                     starttime = datetime.strptime(

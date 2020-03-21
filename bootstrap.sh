@@ -9,7 +9,7 @@ die() {
   exit 1
 }
 
-[[ "$#" -eq 2 ]] || die "Required argument: dbname [up|down]"
+[[ "$#" -eq 2 ]] || die "Required arguments: dbname [up|down]"
 
 migrations=$(find ./migrations/*)
 case $2 in
@@ -17,7 +17,7 @@ case $2 in
     migrations=$(grep -E 'up.sql$' <<< $migrations | sort)
     ;;
   "down")
-    migrations=$(grep -E 'down.sql$' <<< $migrations | sort)
+    migrations=$(grep -E 'down.sql$' <<< $migrations | sort --reverse)
     ;;
   *)
     die "Invalid argument. Valid arguments are: [up|down]"
