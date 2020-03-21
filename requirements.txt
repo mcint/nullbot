@@ -1,2 +1,6 @@
 matrix_client
 matrix_bot_api
+matrix-nio
+psycopg2
+requests
+typing

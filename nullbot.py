@@ -2,13 +2,16 @@ import asyncio
 from dataclasses import dataclass
 from nio import AsyncClient
 import os
+import psycopg2
 import pkgutil
+from typing import Any
 
 @dataclass
 class NullBot:
     homeserver: str
     username: str
     password: str
+    pgc: Any
 
     async def bot_main(self):
         self.client = AsyncClient(self.homeserver, self.username)
@@ -25,19 +28,46 @@ class NullBot:
 
         await self.client.sync_forever(timeout=3000, full_state=True)
 
+    async def send_room(self, room, message):
+        await self.client.room_send(
+            room_id=room.room_id,
+            message_type='m.room.message',
+            content={
+                'msgtype': 'm.text',
+                'body': message,
+            }
+        )
+
 def main():
     try:
         homeserver = os.environ['MATRIX_HOMESERVER']
         username = os.environ['MATRIX_USERNAME']
         password = os.environ['MATRIX_PASSWORD']
-
-        bot = NullBot(homeserver, username, password)
-        asyncio.run(bot.bot_main())
     except KeyError:
         print(
             'You must provide environment variables '
             'MATRIX_HOMESERVER, MATRIX_USERNAME, MATRIX_PASSWORD'
         )
+
+    dbname = os.getenv('PGDATABASE') or 'nullbot'
+    dbuser = os.getenv('PGUSER') or os.getlogin()
+    dbhost = os.getenv('PGHOST') or 'localhost'
+    dbpass = os.getenv('PGPASSWORD') or ''
+    dbport = os.getenv('PGPORT') or 5432
+    try:
+        conn = psycopg2.connect(host=dbhost,
+                                port=dbport,
+                                database=dbname,
+                                user=dbuser,
+                                password=dbpass)
+    except:
+        print("Cannot connect to database!")
+        exit(1)
+
+
+    # Start the bot
+    bot = NullBot(homeserver, username, password, conn)
+    asyncio.run(bot.bot_main())
 
 if __name__ == '__main__':
     main()
