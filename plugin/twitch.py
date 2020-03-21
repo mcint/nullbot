@@ -4,6 +4,7 @@ import re
 import requests
 import psycopg2
 
+from datetime import datetime
 from functools import partial
 from nio import RoomMessageText
 from psycopg2.errors import UniqueViolation
@@ -11,6 +12,7 @@ from psycopg2.errors import UniqueViolation
 # https://dev.twitch.tv/docs/api/reference#get-streams
 TWITCH_STREAMS = 'https://api.twitch.tv/helix/streams'
 TWITCH_TV = 'https://twitch.tv'
+TWITCH_DATE_FMT = '%Y-%m-%dT%H:%M:%SZ'
 
 twitch_re = re.compile(r'^!twitch (add|rm) (.+)$')
 
@@ -28,22 +30,27 @@ async def monitor_streams(bot, room_id, twitch_client_id):
             if resp.status_code != 200:
                 print(f'error: Could not GET {TWITCH_STREAMS}: {resp.reason}')
             else:
-                # TODO(keur): Use timestamps to be even smarter about not
-                # notifying here. Skipping for now because datetime.now() is
-                # garbage, and we need to pull in pytz just to compare UTC.
                 stream_data = resp.json()['data']
                 _live = set([ d['user_name'] for d in stream_data ])
+                smap = { d['user_name'] : d for d in stream_data }
                 new = _live - live
+                now = datetime.utcnow()
                 for streamer in (_live - live):
-                    msg = f'{streamer} is live at {TWITCH_TV}/{streamer}!'
-                    await bot.client.room_send(
-                        room_id=room_id,
-                        message_type='m.room.message',
-                        content={
-                            'msgtype': 'm.text',
-                            'body': msg,
-                        }
+                    starttime = datetime.strptime(
+                        smap[streamer]['started_at'],
+                        TWITCH_DATE_FMT
                     )
+                    delta = now - starttime
+                    if delta.seconds <= 60:
+                        msg = f'{streamer} is live at {TWITCH_TV}/{streamer}!'
+                        await bot.client.room_send(
+                            room_id=room_id,
+                            message_type='m.room.message',
+                            content={
+                                'msgtype': 'm.text',
+                                'body': msg,
+                            }
+                        )
                 live = _live
             await asyncio.sleep(20)
 
