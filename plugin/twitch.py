@@ -1,7 +1,7 @@
 import asyncio
+import httpx
 import os
 import re
-import requests
 import psycopg2
 
 from datetime import datetime
@@ -20,18 +20,19 @@ async def monitor_streams(bot, room_id, twitch_client_id):
     conn = bot.pgc
     headers = { 'Client-ID': twitch_client_id }
 
-    live = set()
+    live = frozenset()
     with conn.cursor() as cur:
         while True:
             cur.execute("select username from twitch")
             users = [ r[0] for r in cur.fetchall() ]
             params = { 'user_login': users }
-            resp = requests.get(TWITCH_STREAMS, headers=headers, params=params)
-            if resp.status_code != 200:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(TWITCH_STREAMS, headers=headers,  params=params)
+            if resp.is_error:
                 print(f'error: Could not GET {TWITCH_STREAMS}: {resp.reason}')
             else:
                 stream_data = resp.json()['data']
-                _live = set([ d['user_name'] for d in stream_data ])
+                _live = frozenset(d['user_name'] for d in stream_data)
                 smap = { d['user_name'] : d for d in stream_data }
                 now = datetime.utcnow()
                 for streamer in (_live - live):

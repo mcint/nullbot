@@ -49,17 +49,8 @@ def main():
             'MATRIX_HOMESERVER, MATRIX_USERNAME, MATRIX_PASSWORD'
         )
 
-    dbname = os.getenv('PGDATABASE') or 'nullbot'
-    dbuser = os.getenv('PGUSER') or os.getlogin()
-    dbhost = os.getenv('PGHOST') or 'localhost'
-    dbpass = os.getenv('PGPASSWORD') or ''
-    dbport = os.getenv('PGPORT') or 5432
     try:
-        conn = psycopg2.connect(host=dbhost,
-                                port=dbport,
-                                database=dbname,
-                                user=dbuser,
-                                password=dbpass)
+        conn = psycopg2.connect('')
     except:
         print("Cannot connect to database!")
         exit(1)
