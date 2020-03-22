@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "nullbot"
+version = "0.1.0"
+description = ""
+authors = []
+license = "BSD-3-Clause"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+matrix-nio = "^0.9.0"
+psycopg2 = "^2.8.4"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.poetry.scripts]
+nullbot = "nullbot:main"
