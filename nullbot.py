@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from nio import AsyncClient
+from nio.rooms import MatrixRoom
 import os
 import asyncpg
 import pkgutil
@@ -29,6 +30,9 @@ class NullBot:
                 asyncio.create_task(register(self))
 
         await self.client.sync_forever(timeout=3000, full_state=True)
+
+    def room_from_id(self, room_id):
+        return MatrixRoom(room_id, self.client.user_id)
 
     async def send_room(self, room, message):
         await self.client.room_send(

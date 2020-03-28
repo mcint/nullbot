@@ -5,18 +5,10 @@ import re
 
 choose_re = re.compile(r'!choose (.+)')
 
-async def message_cb(client, room, event):
+async def message_cb(bot, room, event):
     if (match := choose_re.fullmatch(event.body)) is not None:
         choice = random.choice(match.group(1).split(','))
-
-        await client.room_send(
-            room_id=room.room_id,
-            message_type='m.room.message',
-            content={
-                'msgtype': 'm.text',
-                'body': f'{choice}',
-            }
-        )
+        await bot.send_room(room, choice)
 
 async def register(bot):
-    bot.client.add_event_callback(partial(message_cb, bot.client), RoomMessageText)
+    bot.client.add_event_callback(partial(message_cb, bot), RoomMessageText)
