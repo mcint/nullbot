@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from nio import AsyncClient
 import os
-import psycopg2
+import asyncpg
 import pkgutil
 from typing import Any
 
@@ -11,7 +11,6 @@ class NullBot:
     homeserver: str
     username: str
     password: str
-    pgc: Any
 
     async def bot_main(self):
         self.client = AsyncClient(self.homeserver, self.username)
@@ -19,6 +18,9 @@ class NullBot:
 
         # Do an initial sync and ignore it, to throw out old messages
         await self.client.sync()
+
+        # Connect to postgres
+        self.pgc = await asyncpg.connect()
 
         for importer, mod_name, _ in pkgutil.iter_modules(['plugin']):
             mod = importer.find_module(mod_name).load_module(mod_name)
@@ -49,15 +51,8 @@ def main():
             'MATRIX_HOMESERVER, MATRIX_USERNAME, MATRIX_PASSWORD'
         )
 
-    try:
-        conn = psycopg2.connect('')
-    except:
-        print("Cannot connect to database!")
-        exit(1)
-
-
     # Start the bot
-    bot = NullBot(homeserver, username, password, conn)
+    bot = NullBot(homeserver, username, password)
     asyncio.run(bot.bot_main())
 
 if __name__ == '__main__':
