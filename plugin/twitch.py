@@ -7,6 +7,7 @@ import asyncpg
 from datetime import datetime
 from functools import partial
 from nio import RoomMessageText
+from nio.responses import RoomResolveAliasError
 from asyncpg.exceptions import UniqueViolationError
 
 # https://dev.twitch.tv/docs/api/reference#get-streams
@@ -16,7 +17,7 @@ TWITCH_DATE_FMT = '%Y-%m-%dT%H:%M:%SZ'
 
 twitch_re = re.compile(r'^!twitch (add|rm) (.+)$')
 
-async def monitor_streams(bot, room_id, twitch_client_id):
+async def monitor_streams(bot, room, twitch_client_id):
     conn = bot.pgc
     headers = { 'Client-ID': twitch_client_id }
 
@@ -42,14 +43,7 @@ async def monitor_streams(bot, room_id, twitch_client_id):
                 delta = now - starttime
                 if delta.seconds <= 60:
                     msg = f'{streamer} is live at {TWITCH_TV}/{streamer}!'
-                    await bot.client.room_send(
-                        room_id=room_id,
-                        message_type='m.room.message',
-                        content={
-                            'msgtype': 'm.text',
-                            'body': msg,
-                        }
-                    )
+                    await bot.send_room(room, msg)
             live = _live
         await asyncio.sleep(20)
 
@@ -86,11 +80,17 @@ async def twitch_db(bot, room, event):
 async def register(bot):
     try:
         twitch_client_id = os.environ['TWITCH_CLIENT_ID']
-        stream_room_id = os.environ['STREAM_ROOM_ID']
-        asyncio.create_task(monitor_streams(bot, stream_room_id, twitch_client_id))
+        stream_room = os.environ['STREAM_ROOM']
+        resolve = await bot.client.room_resolve_alias(stream_room)
+        if not isinstance(resolve, RoomResolveAliasError):
+            wrapped_room = bot.room_from_id(resolve.room_id)
+            asyncio.create_task(monitor_streams(bot, wrapped_room, twitch_client_id))
+        else:
+            print('warn: Not monitoring streams. '
+                  'Could not resolve room alias: ', stream_room)
     except KeyError:
         print(
             'warn: Not monitoring streams. '
-             'TWITCH_CLIENT_ID and STREAM_ROOM_ID required'
+             'TWITCH_CLIENT_ID and STREAM_ROOM required'
         )
     bot.client.add_event_callback(partial(twitch_db, bot), RoomMessageText)
