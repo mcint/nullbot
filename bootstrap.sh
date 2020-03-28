@@ -28,3 +28,5 @@ for m in $migrations; do
   psql -d $1 -f $m
   [[ $? -ne 0 ]] && die "Error applying migration: $m"
 done
+
+exit 0
