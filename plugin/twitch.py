@@ -5,6 +5,7 @@ import re
 import asyncpg
 
 from datetime import datetime
+from datetime import timedelta
 from functools import partial
 from nio import RoomMessageText
 from nio.responses import RoomResolveAliasError
@@ -19,14 +20,17 @@ twitch_re = re.compile(r'^!twitch (add|rm) (.+)$')
 
 async def monitor_streams(bot, room, twitch_client_id):
     conn = bot.pgc
-    headers = { 'Client-ID': twitch_client_id }
+    headers = {
+        'Client-ID': twitch_client_id,
+        'Cache-Control': 'no-cache, max-age= 0',
+    }
 
     live = frozenset()
     while True:
         rows = await conn.fetch("select username from twitch")
         users = [ r['username'] for r in rows ]
         params = { 'user_login': users }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(http2=True) as client:
             resp = await client.get(TWITCH_STREAMS, headers=headers,  params=params)
         if resp.is_error:
             print(f'error: Could not GET {TWITCH_STREAMS}: {resp.reason}')
@@ -41,11 +45,11 @@ async def monitor_streams(bot, room, twitch_client_id):
                     TWITCH_DATE_FMT
                 )
                 delta = now - starttime
-                if delta.seconds <= 60:
+                if timedelta(0) < delta <= timedelta(minutes=5):
                     msg = f'{streamer} is live at {TWITCH_TV}/{streamer}!'
                     await bot.send_room(room, msg)
             live = _live
-        await asyncio.sleep(20)
+        await asyncio.sleep(30)
 
 async def twitch_db(bot, room, event):
     conn = bot.pgc
