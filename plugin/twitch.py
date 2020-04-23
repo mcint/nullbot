@@ -40,13 +40,15 @@ async def monitor_streams(bot, room, twitch_client_id):
             smap = { d['user_name'] : d for d in stream_data }
             now = datetime.utcnow()
             for streamer in (_live - live):
+                stream_data = smap[streamer]
                 starttime = datetime.strptime(
-                    smap[streamer]['started_at'],
+                    stream_data['started_at'],
                     TWITCH_DATE_FMT
                 )
                 delta = now - starttime
                 if timedelta(0) < delta <= timedelta(minutes=5):
-                    msg = f'{streamer} is live at {TWITCH_TV}/{streamer}!'
+                    title = stream_data['title']
+                    msg = f'{streamer} is playing {title} at {TWITCH_TV}/{streamer}!'
                     await bot.send_room(room, msg)
             live = _live
         await asyncio.sleep(30)
