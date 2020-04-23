@@ -16,7 +16,8 @@ TWITCH_STREAMS = 'https://api.twitch.tv/helix/streams'
 TWITCH_TV = 'https://twitch.tv'
 TWITCH_DATE_FMT = '%Y-%m-%dT%H:%M:%SZ'
 
-twitch_re = re.compile(r'^!twitch (add|rm) (.+)$')
+twitch_add_re = re.compile(r'^!twitch (add|rm) (.+)$')
+twitch_ls_re = re.compile(r'^!twitch ls(?: ([a-zA-Z0-9]+))?$')
 
 async def monitor_streams(bot, room, twitch_client_id):
     conn = bot.pgc
@@ -61,10 +62,12 @@ async def twitch_db(bot, room, event):
         try:
             async with conn.transaction():
                 for user in users:
-                    await conn.execute("insert into twitch (username) values ($1)", user)
+                    await conn.execute("""insert into twitch (username) values
+                            ($1) on conflict do nothing""", user)
                 await bot.send_room(room, f'Added users: {users_s}')
-        except UniqueViolationError as e:
-            await bot.send_room(room, 'error: Cannot add duplicate user')
+        except Exception as e:
+            await bot.send_room(room, 'error: Could not add users')
+            print(e)
 
     async def twitch_rm(users):
         users_s = " ".join(users)
@@ -75,13 +78,25 @@ async def twitch_db(bot, room, event):
             await bot.send_room(room, f'error: Could not remove {users_s}')
             print(e)
 
-    if (match := twitch_re.fullmatch(event.body)):
+    if (match := twitch_add_re.fullmatch(event.body)):
         action = match.group(1)
         users = match.group(2).split()
         if action == "add":
             await twitch_add(users)
         else:
             await twitch_rm(users)
+
+    if (match := twitch_ls_re.fullmatch(event.body)):
+        q = "%" if not match.group(1) else "%" + match.group(1) + "%"
+        try:
+            rows = await conn.fetch("""select * from twitch where
+                username ilike $1""", q)
+            user_list = "\n".join(r['username'] for r in rows)
+            await bot.send_room(room, f"Monitoring streams:\n{user_list}")
+        except Exception as e:
+            await bot.send_room(room, f'error: could not fetch users')
+            print(e)
+
 
 async def register(bot):
     try:
