@@ -89,8 +89,9 @@ async def twitch_db(bot, twitch_client_id, room, event):
         user_data = resp.json()['data']
         valid_users = { u['login'] for u in user_data }
         invalid_users = set(users) - valid_users
-        invalid_userss = ", ".join(invalid_users)
-        await bot.send_room(room, f"{invalid_userss} not known to Twitch API. Skipping!")
+        if invalid_users:
+            invalid_userss = ", ".join(invalid_users)
+            await bot.send_room(room, f"{invalid_userss} not known to Twitch API. Skipping!")
 
         if not valid_users:
             return
